@@ -26,27 +26,31 @@ Router.get('/:id', async (req, res) => {
     }
 })
 Router.post('/register', async (req, res) => {
-    const { name, email, password, avatar } = req.body;
+    const { name, email, password } = req.body;
+    const avatar = req.file ? req.file.path : null;
     try {
         const user = await CandidateModel.findOne({ email });
-        bcrypt.hash(password, 3, async (err, hash) => {
-            if (err) {
-                res.status(401).json({ message: err.message })
-            }
-            else {
-                try {
-                    const newUser = new CandidateModel({
-                        name, email, password: hash, avatar
-                    })
-                    await newUser.save()
-                    var token = jwt.sign({ userID: user._id }, "secret")
-                    res.status(201).json({ newUser, message: "User Registered", token })
-                } catch (err) {
-                    res.status(400).send(err.message)
+        if (user) {
+            res.status(400).json({ message: "Candidate is registered" })
+        } else {
+            bcrypt.hash(password, 3, async (err, hash) => {
+                if (err) {
+                    res.status(401).json({ message: err.message })
                 }
-
-            }
-        })
+                else {
+                    try {
+                        const newUser = new CandidateModel({
+                            name, email, password: hash, avatar
+                        })
+                        await newUser.save()
+                        const token = jwt.sign({ userID: newUser._id, userEmail: email, userPass: password, userAvatar: avatar }, "secret");
+                        res.status(200).json({ message: "User Registered", token, name: newUser.name, avatar: newUser.avatar });
+                    } catch (err) {
+                        res.status(400).send(err.message)
+                    }
+                }
+            })
+        }
     } catch (err) {
         res.status(400).json({ message: err.message })
     }
@@ -54,6 +58,7 @@ Router.post('/register', async (req, res) => {
 Router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
+        console.log(email,password)
         const user = await CandidateModel.findOne({ email });
         if (!user) {
             res.status(400).json({ message: "Account Not Found" })
@@ -62,7 +67,7 @@ Router.post('/login', async (req, res) => {
                 if (err) {
                     res.status(400).json({ message: "Wrong credentials" })
                 } else {
-                    var token = jwt.sign({ userID: user._id }, "secret")
+                    var token = jwt.sign({ userID: user._id,userEmail: email, userPass: user.password}, "secret")
                     res.status(200).json({ message: "User Logged In", token })
                 }
             })
@@ -87,26 +92,29 @@ Router.post('/upload', upload.single('resume'), async (req, res) => {
         res.status(500).send(error.message);
     }
 });
-Router.get('/resume',async(req,res)=>{
-    
+Router.get('/resume', async (req, res) => {
+
 })
-Router.post('/:id/add-field/:fieldName', async (req, res) => {
-    const { id, fieldName } = req.params;
-    const { newData } = req.body;
+Router.post('/add-field/:fieldName',auth, async (req, res) => {
+    const { fieldName } = req.params;
+    const { newData,userID } = req.body;
     try {
-        const user = await CandidateModel.findById(id);
-
+        const user = await CandidateModel.findById(userID);
         if (!user) {
-            return res.status(404).json({ message: "User not found" });
-        }
-        user[fieldName] = user[fieldName] || [];
-        if (newData && newData.length > 0) {
-            user[fieldName].push(...newData);
-        }
-        // Save the updated user profile
-        const updateUser = await user.save();
+            res.status(404).json({ message: "User not found" });
+        }else if(newData.length<1){
+            res.status(404).json({ message: "Wrong Input" });
+        } 
+        else {
+            user[fieldName] = user[fieldName] || [];
+            if (newData && newData.length > 0) {
+                user[fieldName].push(...newData);
+            }
+            // Save the updated user profile
+            const updateUser = await user.save();
 
-        res.status(200).json({ message: `${fieldName} updated successfully`, updateUser });
+            res.status(200).json({ message: `${fieldName} updated successfully`, updateUser });
+        }
     } catch (err) {
         res.status(400).json({ message: err.message });
     }

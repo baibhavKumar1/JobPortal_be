@@ -7,6 +7,7 @@ const companySchema = mongoose.Schema(
             type:String
         },
         industry:String,
+        avatar:String,
         description:String,
         size:String,
         email: String,
@@ -17,6 +18,8 @@ const companySchema = mongoose.Schema(
         jobs: {
             unique: true,
             type: [{
+                _id:false,
+                id:String,
                 role: String
             }]
         }

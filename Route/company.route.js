@@ -1,7 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken');
-const auth = require('../Middleware/auth.middleware');
 const CompanyModel = require('../Model/company.model');
 const Router = express.Router();
 
@@ -23,9 +22,14 @@ Router.get('/:id', async (req, res) => {
     }
 })
 Router.post('/register', async (req, res) => {
-    const { name, email, password, avatar } = req.body;
+    
+    const { name, email, password } = req.body;
+    console.log(name,email,password)
     try {
         const user = await CompanyModel.findOne({ email });
+        if(user){
+            res.status(400).json({message:"Company already regstered"})
+        }else{
         bcrypt.hash(password, 3, async (err, hash) => {
             if (err) {
                 res.status(401).json({ message: err.message })
@@ -33,17 +37,17 @@ Router.post('/register', async (req, res) => {
             else {
                 try {
                     const newUser = new CompanyModel({
-                        name, email, password: hash, avatar
+                        name, email, password: hash
                     })
                     await newUser.save()
-                    var token = jwt.sign({ userID: user._id }, "secret")
-                    res.status(201).json({ newUser, message: "User Registered", token })
+                    var token = jwt.sign({ userID: newUser._id }, "secret")
+                    res.status(201).json({ newUser, message: "User Registered", token})
                 } catch (err) {
                     res.status(400).send(err.message)
                 }
 
             }
-        })
+        })}
     } catch (err) {
         res.status(400).json({ message: err.message })
     }
@@ -51,6 +55,7 @@ Router.post('/register', async (req, res) => {
 Router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
+        console.log(email,password)
         const user = await CompanyModel.findOne({ email });
         if (!user) {
             res.status(400).json({ message: "Account Not Found" })
@@ -60,7 +65,7 @@ Router.post('/login', async (req, res) => {
                     res.status(400).json({ message: "Wrong credentials" })
                 } else {
                     var token = jwt.sign({ userID: user._id }, "secret")
-                    res.status(200).json({ message: "User Logged In", token })
+                    res.status(200).json({user, message: "User Logged In", token })
                 }
             })
         }

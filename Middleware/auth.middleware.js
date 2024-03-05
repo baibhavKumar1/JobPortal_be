@@ -1,4 +1,21 @@
-const auth= (req,res,next)=>{
+const jwt = require('jsonwebtoken')
 
+const auth = async (req, res, next) => {
+    try {
+        const token = req.headers.authorization.split(" ")[1];
+        if (token) {
+            
+            let decoded = jwt.verify(token, "secret");
+            req.body.userID = decoded.userID;
+            console.log('decoded')
+            return next();
+        }
+        else {
+            return res.status(400).send("Unauthorized");
+        }
+    } catch (err) {
+        return res.status(400).json({ "message": err.message });
+    }
 }
-module.exports = auth
+
+module.exports = auth;
